@@ -19,6 +19,15 @@ define pytest
 		--lg-colored-steps $(if $(K),-k $(K),)
 endef
 
+# Boot the target and attach to its serial console instead of running tests,
+# e.g. `make tests/x86-64 CONSOLE=1`. Leave the console with Ctrl-].
+define qemu_console
+	uv --project $(TESTSDIR) run \
+		$(TESTSDIR)/scripts/qemu-shell.py $(if $(V),--verbose,)
+endef
+
+run = $(if $(CONSOLE),$(qemu_console),$(pytest))
+
 $(curdir)/setup:
 	@[ -n "$$(command -v uv)" ] || \
 		(echo "Please install uv. See https://docs.astral.sh/uv/" && exit 1)
@@ -44,26 +53,26 @@ $(curdir)/x86-64:
 		$(FIRMWARE) || true
 
 	LG_QEMU_BIN=$(QEMU_BIN) \
-		$(pytest) \
+		$(run) \
 		--lg-env $(TESTSDIR)/targets/qemu_x86-64.yaml \
 		--firmware $(FIRMWARE:.gz=)
 
-$(curdir)/armsr-armv8: QEMU_BIN ?= qemu_system-aarch64
+$(curdir)/armsr-armv8: QEMU_BIN ?= qemu-system-aarch64
 $(curdir)/armsr-armv8: FIRMWARE ?= $(TOPDIR)/bin/targets/armsr/armv8/openwrt-armsr-armv8-generic-initramfs-kernel.bin
 $(curdir)/armsr-armv8:
 	[ -f $(FIRMWARE) ]
 
 	LG_QEMU_BIN=$(QEMU_BIN) \
-		$(pytest) \
+		$(run) \
 		--lg-env $(TESTSDIR)/targets/qemu_armsr-armv8.yaml \
 		--firmware $(FIRMWARE)
 
 $(curdir)/malta-be: QEMU_BIN ?= qemu-system-mips
-$(curdir)/malta-be: FIRMWARE ?= $(TOPDIR)/bin/targets/malta/be/openwrt-malta-be-vmlinux-initramfs.elf
+$(curdir)/malta-be: FIRMWARE ?= $(TOPDIR)/bin/targets/malta/be/openwrt-malta-be-generic-initramfs-kernel.bin
 $(curdir)/malta-be:
 	[ -f $(FIRMWARE) ]
 
 	LG_QEMU_BIN=$(QEMU_BIN) \
-		$(pytest) \
+		$(run) \
 		--lg-env $(TESTSDIR)/targets/qemu_malta-be.yaml \
 		--firmware $(FIRMWARE)
